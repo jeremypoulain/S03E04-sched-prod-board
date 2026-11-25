@@ -78,8 +78,8 @@ function showError(msg) {
 
 // R1: newest first; existing rows are kept as they are, new ones are inserted in place.
 function render(incidents) {
-  const sorted = [...new Map(incidents.map((i) => [i.id, i])).values()].sort((a, b) =>
-    b.openedAt.localeCompare(a.openedAt),
+  const sorted = [...new Map(incidents.map((i) => [i.id, i])).values()].sort(
+    (a, b) => Date.parse(b.openedAt) - Date.parse(a.openedAt),
   );
   const keep = new Set(sorted.map((i) => i.id));
   for (const [id, li] of rows) if (!keep.has(id)) (li.remove(), rows.delete(id));
