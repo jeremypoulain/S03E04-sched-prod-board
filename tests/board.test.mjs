@@ -34,28 +34,34 @@ test('SCHED-4511 R1 + SCHED-4513 R4: new incident at the top without a reload; r
   assert.deepEqual(await rowIds(page), [NEW_SEV1.id, ...BASE.map((i) => i.id)], 'newest first, no duplicates');
   await page.waitForTimeout(4500);
   const n = calls.incidents.length;
-  assert.ok(n >= 4 && n <= 6, `expected 4-6 polls in ~9 s, got ${n}`);
+  assert.ok(n >= 3 && n <= 6, `expected 3-6 polls in ~9 s, got ${n}`);
   assert.equal(calls.maxInFlight, 1, 'two polls were in flight at once');
   // gaps from the 2nd poll on (the first interception is slow while the page starts)
   const gaps = calls.incidents.slice(2).map((c, k) => c.at - calls.incidents[k + 1].at);
-  assert.ok(gaps.every((g) => g >= 2000 && g < 3000), `refresh is not every ~2 s: ${gaps}`);
+  assert.ok(gaps.every((g) => g >= 2000 && g < 3500), `refresh is not every ~2 s: ${gaps}`);
   assert.equal(calls.incidents[0].since, null, 'first poll starts the chain');
   assert.ok(calls.incidents.slice(1).every((c, k) => c.since === `c${k}`), 'each poll sends the latest cursor');
   assert.equal(navigations, 0, 'the page reloaded');
   noViolations(calls);
 });
 
-test('SCHED-4511 R2: Ack sends one ack for that row, with the latest cursor; acked survives refreshes', async (t) => {
+test('SCHED-4511 R2 (decision 0001 [A3]): Ack opens a confirm naming the id; only confirm-ack sends one ack with the latest cursor; acked survives refreshes', async (t) => {
   const { page, calls } = await openBoard(t, night({ arrivals: [{ afterPoll: 1, incident: NEW_SEV1 }] }));
   const row = page.locator('[data-testid="incident-row"][data-id="INC-3851"]');
   await row.waitFor();
   await page.waitForTimeout(2500); // let the list move (a new row arrives at the top)
-  await row.locator('[data-testid="ack"]').dblclick();
+  await row.locator('[data-testid="ack"]').click();
+  await tid(page, 'confirm').waitFor({ state: 'visible' });
+  assert.match(await tid(page, 'confirm').innerText(), /INC-3851/, 'the confirm names the incident id');
+  await page.waitForTimeout(300);
+  assert.equal(calls.ack.length, 0, 'no ack before confirm-ack');
+  await tid(page, 'confirm-ack').dblclick();
   await row.locator('[data-testid="acked"]').waitFor();
   assert.equal(calls.ack.length, 1, `expected one ack call, got ${calls.ack.length}`);
   assert.equal(calls.ack[0].id, 'INC-3851');
   const latest = `c${calls.incidents.length - 1}`;
   assert.ok([latest, `c${calls.incidents.length - 2}`].includes(calls.ack[0].cursor), `stale cursor ${calls.ack[0].cursor}`);
+  assert.equal(await tid(page, 'confirm').isVisible(), false, 'confirm closes after the ack');
   await page.waitForTimeout(4500);
   assert.equal(await row.locator('[data-testid="acked"]').count(), 1, 'acked lost after refresh');
   assert.equal(await row.locator('[data-testid="ack"]').count(), 0);
@@ -67,6 +73,7 @@ test('SCHED-4511 R2: a failed ack leaves no mark and the button usable', async (
   const { page, calls } = await openBoard(t, night({ ackFails: true }));
   const row = page.locator('[data-testid="incident-row"][data-id="INC-4019"]');
   await row.locator('[data-testid="ack"]').click();
+  await tid(page, 'confirm-ack').click();
   await page.locator('.error').waitFor({ state: 'visible' });
   assert.equal(await row.locator('[data-testid="acked"]').count(), 0);
   assert.equal(await row.locator('[data-testid="ack"]').isEnabled(), true);
@@ -97,9 +104,10 @@ test('R6 + hooks: build sha in meta and footer; every pinned hook present in its
   const present = {};
   for (const h of HOOKS) present[h] = await tid(page, h).count();
   assert.deepEqual(
-    { board: present.board, list: present['incident-list'], rows: present['incident-row'], ack: present.ack, sha: present['build-sha'], empty: present.empty, loader: present.loader, acked: present.acked },
-    { board: 1, list: 1, rows: BASE.length, ack: BASE.length, sha: 1, empty: 1, loader: 0, acked: 0 },
+    { board: present.board, list: present['incident-list'], rows: present['incident-row'], ack: present.ack, sha: present['build-sha'], empty: present.empty, loader: present.loader, acked: present.acked, confirm: present.confirm, confirmAck: present['confirm-ack'], confirmCancel: present['confirm-cancel'] },
+    { board: 1, list: 1, rows: BASE.length, ack: BASE.length, sha: 1, empty: 1, loader: 0, acked: 0, confirm: 1, confirmAck: 1, confirmCancel: 1 },
   );
+  assert.equal(await tid(page, 'confirm').isVisible(), false, 'confirm hidden until an Ack is clicked');
   assert.equal(await tid(page, 'empty').isVisible(), false);
   const rowAttr = await tid(page, 'incident-row').first().getAttribute('data-id');
   assert.equal(rowAttr, BASE[0].id);

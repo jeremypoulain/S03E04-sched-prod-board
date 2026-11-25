@@ -28,7 +28,7 @@ await page.waitForFunction((id) => document.querySelector('[data-testid="inciden
 checks.newIncidentOnTopWithoutReload = true;
 checks.refreshing = polls >= 5;
 checks.localTimeDayFirst = /^\d{2}\/\d{2}/.test(await tid('incident-row').first().locator('time').textContent());
-checks.hooksPresent = (await Promise.all(['board', 'incident-list', 'incident-row', 'ack', 'build-sha', 'empty'].map(async (h) => (await tid(h).count()) > 0))).every(Boolean) && HOOKS.length === 8;
+checks.hooksPresent = (await Promise.all(['board', 'incident-list', 'incident-row', 'ack', 'build-sha', 'empty', 'confirm', 'confirm-ack', 'confirm-cancel'].map(async (h) => (await tid(h).count()) > 0))).every(Boolean) && HOOKS.length === 11;
 checks.noAckSent = blocked.length === 0;
 await browser.close();
 

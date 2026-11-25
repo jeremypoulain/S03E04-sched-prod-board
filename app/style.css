@@ -17,3 +17,10 @@ footer { color: #777; font-size: 13px; }
 .error { color: #b00020; }
 .updated { font-variant-numeric: tabular-nums; }
 footer [data-testid="build-sha"] { font-family: ui-monospace, monospace; }
+
+/* Decision 0001: confirm slot keeps its height (no layout shift) and sits above the list (covers no Ack). */
+.confirm-slot { height: 48px; margin-top: 6px; display: flex; align-items: center; overflow: hidden; }
+.confirm { box-sizing: border-box; max-height: 48px; display: flex; gap: 10px; align-items: center; padding: 6px 10px; border: 2px solid #b00020; border-radius: 6px; background: #fff4f4; font-weight: 600; }
+.confirm[hidden] { display: none; }
+.confirm button { font: inherit; padding: 4px 12px; border-radius: 4px; border: 1px solid #888; background: #fff; cursor: pointer; }
+.confirm [data-testid="confirm-ack"] { border-color: #b00020; color: #b00020; }

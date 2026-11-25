@@ -8,4 +8,5 @@ Build what `issues/` asks, against `plan.md`. Keep it short; links over prose.
 - **One commit on main = the merge.** Commit with the template (`.gitmessage`): issue, plan rule, door, hooks, proof.
 - **Deploy:** push to main → `pages.yml` writes the commit sha into `meta[name=build]` and the footer → GitHub Pages.
 - **Freeze:** once the live board serves the sha and the smoke passes, no change to `app/` until the claim. Findings go in the report.
-- Product decisions: `decisions/` (template there). Product's words are copied as written.
+- Product decisions: `decisions/` (template there). Product's words are copied as written; a decision can change a plan rule (0001 changed R2: Ack asks to confirm, naming the id).
+- **Click like a person in tests and recordings** (`raceClick` in tests/harness.mjs): click a screen position while the list moves, not a locator on a still page.

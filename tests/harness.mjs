@@ -85,3 +85,21 @@ export async function openBoard(t, scenario, contextOptions = {}) {
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   return { page, ...mock };
 }
+
+/**
+ * Clicks like a person, not like a test (L-17): aims at the Ack of `meantId`, waits for a new incident to land on top,
+ * then clicks the screen position right away with the mouse, while the list moves. Returns the row under the pointer
+ * at the click and the ms after landing.
+ */
+export async function raceClick(page, meantId) {
+  const btn = page.locator(`[data-testid="incident-row"][data-id="${meantId}"] [data-testid="ack"]`);
+  await btn.hover();
+  const box = await btn.boundingBox();
+  const px = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const top = await page.locator('[data-testid="incident-row"]').first().getAttribute('data-id');
+  await page.waitForFunction((id) => document.querySelector('[data-testid="incident-row"]')?.dataset.id !== id, top, { timeout: 30000, polling: 'raf' });
+  const landed = Date.now();
+  const under = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="incident-row"]')?.dataset.id ?? null, px);
+  await page.mouse.click(px.x, px.y);
+  return { under, msAfterLanding: Date.now() - landed };
+}

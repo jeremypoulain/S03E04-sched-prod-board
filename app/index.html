@@ -12,6 +12,15 @@
     <header>
       <h1>incidents</h1>
       <p class="sub">sched-prod · tonight · <span class="updated" aria-live="polite"></span></p>
+      <!-- Decision 0001: Ack asks to confirm, and the confirm names the incident id. The slot keeps its height,
+           so opening the confirm never moves the list; it sits above the list and covers no Ack button. -->
+      <div class="confirm-slot">
+        <div data-testid="confirm" class="confirm" role="alertdialog" aria-live="assertive" hidden>
+          <span class="confirm-text"></span>
+          <button type="button" data-testid="confirm-ack">Ack</button>
+          <button type="button" data-testid="confirm-cancel">Cancel</button>
+        </div>
+      </div>
     </header>
     <main data-testid="board">
       <p data-testid="loader" class="loader" role="status">Loading incidents…</p>

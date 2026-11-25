@@ -1,6 +1,6 @@
 # sched-prod board — contract (pinned)
 
-Source of truth for tests: `tests/contracts.mjs`. Change only when product decides it; list every change in the System Diff.
+Source of truth for tests: `tests/contracts.mjs`. Derived from the workspace rules (docs/RULES.md, outside this repo). Change only when product decides it; list every change in the System Diff.
 
 ## Course API (owned by the course, wrapped by `app/api.js`)
 - `GET <api>/incidents?t=<session>[&since=<cursor>]` → `{ updatedAt, incidents: [{ id, service, region, summary, severity, openedAt }], cursor }`, newest first.
@@ -19,10 +19,13 @@ Source of truth for tests: `tests/contracts.mjs`. Change only when product decid
 | `ack` | Ack button in a row | until acked |
 | `acked` | acked mark in a row | after a successful ack; survives refreshes |
 | `build-sha` | footer sha | = `<meta name="build" content>` = deployed commit |
+| `confirm` | the confirm, naming the incident id (decision 0001) | hidden until an Ack is clicked; one pending id; the last Ack wins; fixed-height slot above the list |
+| `confirm-ack` | confirms: one `/ack` call for the named id | closes the confirm |
+| `confirm-cancel` | closes the confirm (also Escape) | nothing is acked |
 
 Also: `<time datetime="<openedAt UTC>">` shows the viewer's local time (locale order).
 
 ## Flows
 - `open-board`: loader → list (or empty).
-- `ack-incident`: Ack → one `/ack` call for that row's id → row shows `acked`.
+- `ack-incident`: Ack → confirm naming the row's id → confirm-ack → one `/ack` call for that id → row shows `acked` (decision 0001; was: Ack → ack).
 - `watch-board`: refresh every 2 s, no reload; new incidents at the top.
