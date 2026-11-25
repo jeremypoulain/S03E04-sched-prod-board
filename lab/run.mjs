@@ -62,6 +62,11 @@ await page.addInitScript(() => {
     };
     tick();
     setInterval(tick, 250);
+    // Lab pointer ring: headless video does not draw the mouse cursor.
+    const ring = document.createElement('div');
+    ring.style.cssText = 'position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border:3px solid #e00;border-radius:50%;pointer-events:none;z-index:10000;left:-50px;top:-50px';
+    document.body.append(ring);
+    addEventListener('mousemove', (e) => { ring.style.left = e.clientX + 'px'; ring.style.top = e.clientY + 'px'; }, true);
   });
 });
 
@@ -77,6 +82,13 @@ if (!live) {
 }
 
 const acks = [];
+let firstPollAt = null;
+page.on('request', (r) => {
+  if (!firstPollAt && r.url().includes(`${API_PATH}/incidents`)) {
+    firstPollAt = Date.now();
+    note('first-poll', { offsetMs: firstPollAt - t0 });
+  }
+});
 page.on('console', (m) => note('console', { type: m.type(), text: m.text() }));
 page.on('response', async (r) => {
   if (!r.url().includes(`${API_PATH}/`)) return;
@@ -106,13 +118,24 @@ const firstTop = await tid('incident-row').first().getAttribute('data-id');
 note('board-open', { sha, rows: await tid('incident-row').count(), top: firstTop });
 await page.screenshot({ path: path.join(out, '01-open.png') });
 
-// watch-board: wait for a new incident at the top, without a reload
+// watch-board + the R1/R4 vs R2 conflict: aim at the top row's Ack, let a new incident arrive on top,
+// and record which row is under the pointer before and after (no click while it moves).
+const aimBtn = page.locator(`[data-testid="incident-row"][data-id="${firstTop}"] [data-testid="ack"]`);
+await aimBtn.hover();
+const box = await aimBtn.boundingBox();
+const px = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+const rowAt = () => page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="incident-row"]')?.dataset.id ?? null, px);
+note('aim', { at: mmss(Date.now() - t0), pointerOver: await rowAt() });
 await page.waitForFunction((id) => document.querySelector('[data-testid="incident-row"]')?.dataset.id !== id, firstTop, { timeout: 30000 });
 const newTop = await tid('incident-row').first().getAttribute('data-id');
+const shiftAt = Date.now();
 checks.newIncidentOnTop = newTop !== firstTop;
-note('new-on-top', { id: newTop, at: mmss(Date.now() - t0) });
+const overAfter = await rowAt();
+checks.rowShiftedUnderPointer = overAfter !== firstTop;
+note('new-on-top', { id: newTop, at: mmss(shiftAt - t0), pointerWasOver: firstTop, pointerNowOver: overAfter });
+await page.screenshot({ path: path.join(out, '02-shift-under-pointer.png') });
+await page.mouse.move(px.x - 400, px.y + 200); // move away: the click below is deliberate
 await page.waitForTimeout(1500);
-await page.screenshot({ path: path.join(out, '02-new-on-top.png') });
 
 // ack-incident: on-call takes the incident that just arrived
 const row = page.locator(`[data-testid="incident-row"][data-id="${newTop}"]`);
@@ -151,6 +174,9 @@ checks.noCourseRequestInMock = live ? null : mock.calls.violations.length === 0;
 const ok = Object.values(checks).every((v) => v !== false);
 const record = {
   ok, target, url, live, liveAck, locale, timezoneId, sha, flow: 'ack-incident', at, ackedId: newTop, ack,
+  firstPollOffsetMs: firstPollAt ? firstPollAt - t0 : null,
+  atFromFirstPoll: firstPollAt ? mmss(clickAt - firstPollAt) : null,
+  shift: { at: mmss(shiftAt - t0), pointerWasOver: firstTop, pointerNowOver: overAfter },
   video: { file: mp4, sha256, duration, t0: new Date(t0).toISOString(), end: new Date(tEnd).toISOString() },
   checks, log,
 };
