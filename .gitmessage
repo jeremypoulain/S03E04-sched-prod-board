@@ -1,0 +1,9 @@
+<type>(SCHED-45xx): <what changes, one line>
+
+Issue: SCHED-45xx <title>
+Plan: R<n>[, R<n>]
+Door: two-way | one-way — <why>
+Hooks: unchanged | added <testid> | touched <testid>
+Contract: contract/board.md unchanged | <what changes>
+Proof: tests/<file>.test.mjs (<test name>)
+Risks: <risk + who reads it> | none
