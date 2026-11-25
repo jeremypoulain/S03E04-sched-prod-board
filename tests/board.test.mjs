@@ -36,9 +36,10 @@ test('SCHED-4511 R1 + SCHED-4513 R4: new incident at the top without a reload; r
   const n = calls.incidents.length;
   assert.ok(n >= 3 && n <= 6, `expected 3-6 polls in ~9 s, got ${n}`);
   assert.equal(calls.maxInFlight, 1, 'two polls were in flight at once');
-  // gaps from the 2nd poll on (the first interception is slow while the page starts)
-  const gaps = calls.incidents.slice(2).map((c, k) => c.at - calls.incidents[k + 1].at);
-  assert.ok(gaps.every((g) => g >= 2000 && g < 3500), `refresh is not every ~2 s: ${gaps}`);
+  // measured in the page, at each fetch (the route handler's clock can lag under load)
+  const polls = await page.evaluate(() => window.__polls);
+  const gaps = polls.slice(1).map((p, k) => Math.round(p[0] - polls[k][0]));
+  assert.ok(gaps.length >= 3 && gaps.every((g) => g >= 2000 && g < 3500), `refresh is not every ~2 s (in page): ${gaps}`);
   assert.equal(calls.incidents[0].since, null, 'first poll starts the chain');
   assert.ok(calls.incidents.slice(1).every((c, k) => c.since === `c${k}`), 'each poll sends the latest cursor');
   assert.equal(navigations, 0, 'the page reloaded');

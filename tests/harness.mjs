@@ -76,6 +76,17 @@ export async function openBoard(t, scenario, contextOptions = {}) {
   const browser = await chromium.launch();
   const context = await browser.newContext(contextOptions);
   const page = await context.newPage();
+  // In-page record of every incidents fetch (issue time, cursor): R4 is measured where the board runs, not at
+  // the route handler, whose dispatch can lag under load.
+  await page.addInitScript(() => {
+    window.__polls = [];
+    const f = window.fetch;
+    window.fetch = (...a) => {
+      const u = String(a[0] instanceof Request ? a[0].url : a[0]);
+      if (u.includes('/incidents')) window.__polls.push([performance.now(), new URL(u).searchParams.get('since')]);
+      return f(...a);
+    };
+  });
   const mock = await installMock(page, scenario);
   t.after(async () => {
     await browser.close();
